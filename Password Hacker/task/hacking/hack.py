@@ -3,7 +3,7 @@
 import socket
 import argparse
 
-DESCRIPTION = 'Pass in the required arguments. '
+DESCRIPTION = 'Connects to an unprotected admin website '
 
 
 def cli_parser():
@@ -16,3 +16,6 @@ def cli_parser():
                         help='Enter the msg needed to connect to admin website')
     return parser.parse_args()
 
+
+if __name__ == '__main__':
+    cli_parser()
