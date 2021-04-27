@@ -17,5 +17,29 @@ def cli_parser():
     return parser.parse_args()
 
 
+class SocketHandler:
+    """ Creates and manages both server and clients socket servers. """
+
+    def __init__(self, host, port, msg: str):
+        self.host = host
+        self.port = port
+        self.msg = msg.encode('utf-8')
+        self.conn_success = False
+        self.address = (self.host, self.port)
+
+    def server_socket(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+            server.bind(self.address)
+            server.listen()
+            con, address = server.accept()
+            with con:
+                while True:
+                    # Receive data send by user
+                    user_data = server.recv(1024)
+                    if not user_data:
+                        break
+                    server.sendall('Wrong Password!'.encode('utf-8'))
+
+
 if __name__ == '__main__':
     cli_parser()
